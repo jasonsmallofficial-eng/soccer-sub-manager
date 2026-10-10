@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>9v9 Soccer Coach - Sub & Time Manager</title>
+   <style>
+       :root {
+           --pitch-green: #2e8b57;
+           --pitch-line: #ffffff;
+           --panel-bg: #f8f9fa;
+           --primary: #007bff;
+           --danger: #dc3545;
+           --success: #28a745;
+       }
+
+       body {
+           font-family: Arial, sans-serif;
+           background-color: #e9ecef;
+           margin: 0;
+           padding: 15px;
+           color: #333;
+       }
+
+       h1, h2 {
+           text-align: center;
+           margin: 5px 0 15px 0;
+           color: #2c3e50;
+       }
+
+       .match-timer-bar {
+           background: #2c3e50;
+           color: white;
+           padding: 10px;
+           text-align: center;
+           font-size: 1.2rem;
+           font-weight: bold;
+           border-radius: 8px;
+           margin-bottom: 15px;
+           display: flex;
+           justify-content: space-around;
+           align-items: center;
+       }
+
+       .container {
+           display: flex;
+           flex-direction: row;
+           gap: 20px;
+           max-width: 1400px;
+           margin: 0 auto;
+       }
+
+       @media (max-width: 900px) {
+           .container {
+               flex-direction: column;
+           }
+       }
+
+       /* Sidebar / Roster & Bench */
+       .sidebar {
+           flex: 1;
+           background: var(--panel-bg);
+           padding: 15px;
+           border-radius: 8px;
+           box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+           max-height: 85vh;
+           overflow-y: auto;
+       }
+
+       .player-list {
+           display: flex;
+           flex-direction: column;
+           gap: 8px;
+           min-height: 100px;
+           background: #e2e6ea;
+           padding: 10px;
+           border-radius: 6px;
+           border: 2px dashed #ced4da;
+       }
+
+       .player-card {
+           background: white;
+           padding: 10px;
+           border-radius: 6px;
+           box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+           cursor: grab;
+           display: flex;
+           justify-content: space-between;
+           align-items: center;
+           font-weight: bold;
+           user-select: none;
+           transition: background 0.2s;
+       }
+
+       .player-card:active {
+           cursor: grabbing;
+       }
+
+       .player-info {
+           font-size: 0.85rem;
+           color: #666;
+           font-weight: normal;
+       }
+
+       /* Soccer Pitch Layout */
+       .pitch-container {
+           flex: 2;
+           background: var(--pitch-green);
+           border: 4px solid white;
+           border-radius: 12px;
+           padding: 20px;
+           display: flex;
+           flex-direction: column;
+           justify-content: space-between;
+           min-height: 600px;
+           box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+           position: relative;
+       }
+
+       .pitch-row {
+           display: flex;
+           justify-content: space-around;
+           align-items: center;
+           width: 100%;
+           margin: 10px 0;
+       }
+
+       .position-slot {
+           background: rgba(255, 255, 255, 0.2);
+           border: 2px dashed rgba(255, 255, 255, 0.7);
+           border-radius: 8px;
+           width: 110px;
+           min-height: 80px;
+           padding: 8px;
+           text-align: center;
+           color: white;
+           display: flex;
+           flex-direction: column;
+           justify-content: center;
+           align-items: center;
+           transition: background 0.2s;
+       }
+
+       .position-slot.drag-over {
+           background: rgba(255, 255, 255, 0.4);
+           border-color: white;
+       }
+
+       .position-name {
+           font-size: 0.75rem;
+           text-transform: uppercase;
+           letter-spacing: 1px;
+           margin-bottom: 4px;
+           color: #f1f1f1;
+           font-weight: bold;
+       }
+
+       .slot-assigned-player {
+           background: white;
+           color: #333;
+           width: 100%;
+           padding: 6px 4px;
+           border-radius: 4px;
+           font-weight: bold;
+           font-size: 0.9rem;
+           cursor: grab;
+           box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+       }
+
+       .timer-display {
+           font-size: 0.75rem;
+           color: #d9534f;
+           margin-top: 2px;
+           font-weight: bold;
+       }
+
+       .btn {
+           background: var(--primary);
+           color: white;
+           border: none;
+           padding: 8px 12px;
+           border-radius: 4px;
+           cursor: pointer;
+           font-weight: bold;
+       }
+
+       .btn-danger {
+           background: var(--danger);
+       }
+
+       .btn-success {
+           background: var(--success);
+       }
+
+       .controls {
+           margin-top: 15px;
+           display: flex;
+           gap: 10px;
+           justify-content: center;
+       }
+
+       .stats-table {
+           margin-top: 20px;
+           background: white;
+           padding: 15px;
+           border-radius: 8px;
+           box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+       }
+
+       table {
+           width: 100%;
+           border-collapse: collapse;
+           font-size: 0.9rem;
+       }
+
+       th, td {
+           padding: 8px;
+           text-align: left;
+           border-bottom: 1px solid #dee2e6;
+       }
+
+       th {
+           background-color: #f1f3f5;
+       }
+   </style>
+</head>
+<body>
+
+   <h1>9v9 Match & Sub Manager</h1>
+
+   <div class="match-timer-bar">
+       <div>Half: <span id="current-half">1st Half</span> (30 min target)</div>
+       <div>Match Clock: <span id="match-clock">00:00</span></div>
+       <div>
+           <button class="btn btn-success" id="start-match-btn" onclick="toggleMatchTimer()">Start Match</button>
+           <button class="btn btn-danger" onclick="resetMatchTimer()">Reset Match</button>
+       </div>
+   </div>
+
+   <div class="container">
+       <!-- Sidebar: Bench / Roster -->
+       <div class="sidebar">
+           <h2>Bench / Roster (13)</h2>
+           <p style="font-size:0.8rem; color:#666; text-align:center;">Drag players onto positions or click to sub</p>
+           <div id="bench" class="player-list" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToBench(event)">
+               <!-- Dynamic Player Cards injected here -->
+           </div>
+
+           <div class="controls">
+               <button class="btn" onclick="addNewPlayerPrompt()">+ Add Player</button>
+               <button class="btn btn-danger" onclick="resetAllTimes()">Reset Stats</button>
+           </div>
+       </div>
+
+       <!-- Pitch: 9v9 Formation -->
+       <div class="pitch-container" id="pitch">
+           <!-- Forwards (2) -->
+           <div class="pitch-row">
+               <div class="position-slot" data-pos="ST" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
+                   <div class="position-name">Left Forward</div>
+                   <span class="empty-label">Empty</span>
+               </div>
+               <div class="position-slot" data-pos="ST" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
+                   <div class="position-name">Right Forward</div>
+                   <span class="empty-label">Empty</span>
+               </div>
+           </div>
+
+           <!-- Midfielders (3) -->
+           <div class="pitch-row">
+               <div class="position-slot" data-pos="LM" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
+                   <div class="position-name">Left Mid</div>
+                   <span class="empty-label">Empty</span>
+               </div>
+               <div class="position-slot" data-pos="CM" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
+                   <div class="position-name">Center Mid</div>
+                   <span class="empty-label">Empty</span>
+               </div>
+               <div class="position-slot" data-pos="RM" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
+                   <div class="position-name">Right Mid</div>
+                   <span class="empty-label">Empty</span>
+               </div>
+           </div>
+
+           <!-- Defenders (3) -->
+           <div class="pitch-row">
+               <div class="position-slot" data-pos="LB" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
+                   <div class="position-name">Left Back</div>
+                   <span class="empty-label">Empty</span>
+               </div>
+               <div class="position-slot" data-pos="CB" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
+                   <div class="position-name">Center Back</div>
+                   <span class="empty-label">Empty</span>
+               </div>
+               <div class="position-slot" data-pos="RB" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
+                   <div class="position-name">Right Back</div>
+                   <span class="empty-label">Empty</span>
+               </div>
+           </div>
+
+           <!-- Goalie (1) -->
+           <div class="pitch-row">
+               <div class="position-slot" data-pos="GK" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
+                   <div class="position-name">Goalie</div>
+                   <span class="empty-label">Empty</span>
+               </div>
+           </div>
+       </div>
+   </div>
+
+   <!-- Playing Time Log Table -->
+   <div class="stats-table">
+       <h2>Playing Time Tracker</h2>
+       <table>
+           <thead>
+               <tr>
+                   <th>Player Name</th>
+                   <th>Current Status</th>
+                   <th>Total Playing Time</th>
+               </tr>
+           <thead>
+           <tbody id="stats-tbody">
+               <!-- Injected via JS -->
+           </tbody>
+       </table>
+   </div>
+
+   <script>
+       // Initial 13 players list
+       let players = [
+           { id: 1, name: "Player 1", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 2, name: "Player 2", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 3, name: "Player 3", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 4, name: "Player 4", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 5, name: "Player 5", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 6, name: "Player 6", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 7, name: "Player 7", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 8, name: "Player 8", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 9, name: "Player 9", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 10, name: "Player 10", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 11, name: "Player 11", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 12, name: "Player 12", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
+           { id: 13, name: "Player 13", totalSeconds: 0, currentPosition: null, stintStartSeconds: null }
+       ];
+
+       let matchSeconds = 0;
+       let matchInterval = null;
+       let isMatchRunning = false;
+
+       // Initialize App Render
+       function render() {
+           renderBench();
+           renderPitchSlots();
+           renderStatsTable();
+       }
+
+       function formatTime(totalSecs) {
+           const mins = Math.floor(totalSecs / 60);
+           const secs = totalSecs % 60;
+           return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+       }
+
+       // Match Clock Logic
+       function toggleMatchTimer() {
+           const btn = document.getElementById('start-match-btn');
+           if (!isMatchRunning) {
+               isMatchRunning = true;
+               btn.innerText = "Pause Match";
+               btn.className = "btn btn-danger";
+               matchInterval = setInterval(() => {
+                   matchSeconds++;
+                   document.getElementById('match-clock').innerText = formatTime(matchSeconds);
+
+                   // Update active stints
+                   players.forEach(p => {
+                       if (p.currentPosition !== null) {
+                           p.totalSeconds++;
+                       }
+                   });
+                   renderStatsTable();
+                   renderPitchTimers();
+               }, 1000);
+           } else {
+               isMatchRunning = false;
+               btn.innerText = "Resume Match";
+               btn.className = "btn btn-success";
+               clearInterval(matchInterval);
+           }
+       }
+
+       function resetMatchTimer() {
+           if(confirm("Are you sure you want to reset the match clock?")) {
+               clearInterval(matchInterval);
+               isMatchRunning = false;
+               matchSeconds = 0;
+               document.getElementById('match-clock').innerText = "00:00";
+               document.getElementById('start-match-btn').innerText = "Start Match";
+               document.getElementById('start-match-btn').className = "btn btn-success";
+           }
+       }
+
+       // Render Bench
+       function renderBench() {
+           const benchEl = document.getElementById('bench');
+           benchEl.innerHTML = '';
+
+           const benchPlayers = players.filter(p => p.currentPosition === null);
+
+           if (benchPlayers.length === 0) {
+               benchEl.innerHTML = '<div style="color: #888; text-align: center; font-style: italic; padding: 15px;">All players are on the field!</div>';
+               return;
+           }
+
+           benchPlayers.forEach(player => {
+               const card = document.createElement('div');
+               card.className = 'player-card';
+               card.draggable = true;
+               card.ondragstart = (e) => drag(e, player.id);
+
+               card.innerHTML = `
+                   <span>⚽ ${player.name}</span>
+                   <span class="player-info">Bench (${formatTime(player.totalSeconds)} total)</span>
+               `;
+               benchEl.appendChild(card);
+           });
+       }
+
+       // Render Pitch Slots
+       function renderPitchSlots() {
+           const slots = document.querySelectorAll('.position-slot');
+           slots.forEach((slot, index) => {
+               // Find if any player is assigned to this exact slot index or position identifier
+               // To keep it simple, let's map slots by a unique generated index
+               if (!slot.dataset.slotId) {
+                   slot.dataset.slotId = 'slot_' + index;
+               }
+               const slotId = slot.dataset.slotId;
+
+               const assignedPlayer = players.find(p => p.currentPosition === slotId);
+
+               // Clear out previous card element if any
+               const existingCard = slot.querySelector('.slot-assigned-player');
+               const emptyLabel = slot.querySelector('.empty-label');
+
+               if (assignedPlayer) {
+                   if(emptyLabel) emptyLabel.style.display = 'none';
+                   if(!existingCard) {
+                       const card = document.createElement('div');
+                       card.className = 'slot-assigned-player';
+                       card.draggable = true;
+                       card.id = 'assigned_' + assignedPlayer.id;
+                       card.ondragstart = (e) => drag(e, assignedPlayer.id);
+                       slot.appendChild(card);
+                   }
+                   const card = slot.querySelector('.slot-assigned-player');
+                   const stintSecs = matchSeconds - (assignedPlayer.stintStartSeconds ?? matchSeconds);
+                   card.innerHTML = `
+                       <div>${assignedPlayer.name}</div>
+                       <div class="timer-display">Stint: ${formatTime(stintSecs)}</div>
+                   `;
+               } else {
+                   if(existingCard) existingCard.remove();
+                   if(emptyLabel) emptyLabel.style.display = 'block';
+               }
+           });
+       }
+
+       function renderPitchTimers() {
+           const slots = document.querySelectorAll('.position-slot');
+           slots.forEach(slot => {
+               const slotId = slot.dataset.slotId;
+               const assignedPlayer = players.find(p => p.currentPosition === slotId);
+               if (assignedPlayer) {
+                   const timerEl = slot.querySelector('.timer-display');
+                   if (timerEl) {
+                       const stintSecs = matchSeconds - assignedPlayer.stintStartSeconds;
+                       timerEl.innerText = `Stint: ${formatTime(stintSecs)}`;
+                   }
+               }
+           });
+       }
+
+       // Render Stats Table
+       function renderStatsTable() {
+           const tbody = document.getElementById('stats-tbody');
+           tbody.innerHTML = '';
+           players.forEach(p => {
+               const tr = document.createElement('tr');
+               const status = p.currentPosition ? 'On Field' : 'On Bench';
+               const statusColor = p.currentPosition ? 'color: var(--success); font-weight:bold;' : 'color: #666;';
+
+               tr.innerHTML = `
+                   <td>${p.name}</td>
+                   <td style="${statusColor}">${status}</td>
+                   <td>${formatTime(p.totalSeconds)}</td>
+               `;
+               tbody.appendChild(tr);
+           });
+       }
+
+       // Drag and Drop Handlers
+       function drag(ev, playerId) {
+           ev.dataTransfer.setData("text/plain", playerId);
+       }
+
+       function allowDrop(ev) {
+           ev.preventDefault();
+           const slot = ev.target.closest('.position-slot') || ev.target.closest('#bench');
+           if (slot) slot.classList.add('drag-over');
+       }
+
+       function removeDropStyle(ev) {
+           const slot = ev.target.closest('.position-slot') || ev.target.closest('#bench');
+           if (slot) slot.classList.remove('drag-over');
+       }
+
+       function dropToPosition(ev) {
+           ev.preventDefault();
+           const slot = ev.target.closest('.position-slot');
+           if (slot) slot.classList.remove('drag-over');
+
+           const playerId = parseInt(ev.dataTransfer.getData("text/plain"));
+           const slotId = slot.dataset.slotId;
+
+           // Check if another player is already in this slot
+           const occupant = players.find(p => p.currentPosition === slotId);
+           if (occupant) {
+               // Send occupant to bench
+               occupant.currentPosition = null;
+               occupant.stintStartSeconds = null;
+           }
+
+           // Assign new player to slot
+           const player = players.find(p => p.id === playerId);
+           if (player) {
+               player.currentPosition = slotId;
+               player.stintStartSeconds = matchSeconds; // start tracking current stint time
+           }
+
+           render();
+       }
+
+       function dropToBench(ev) {
+           ev.preventDefault();
+           const benchEl = document.getElementById('bench');
+           benchEl.classList.remove('drag-over');
+
+           const playerId = parseInt(ev.dataTransfer.getData("text/plain"));
+           const player = players.find(p => p.id === playerId);
+
+           if (player) {
+               player.currentPosition = null;
+               player.stintStartSeconds = null;
+           }
+
+           render();
+       }
+
+       function addNewPlayerPrompt() {
+           const name = prompt("Enter new player name:");
+           if (name && name.trim() !== "") {
+               const newId = players.length > 0 ? Math.max(...players.map(p => p.id)) + 1 : 1;
+               players.push({
+                   id: newId,
+                   name: name.trim(),
+                   totalSeconds: 0,
+                   currentPosition: null,
+                   stintStartSeconds: null
+               });
+               render();
+           }
+       }
+
+       function resetAllTimes() {
+           if(confirm("Reset playing time statistics for all players?")) {
+               players.forEach(p => {
+                   p.totalSeconds = 0;
+                   if(p.currentPosition !== null) {
+                       p.stintStartSeconds = matchSeconds;
+                   }
+               });
+               render();
+           }
+       }
+
+       // Initial render execution on load
+       render();
+   </script>
+</body>
+</html>
