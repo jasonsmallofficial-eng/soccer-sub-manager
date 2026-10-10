@@ -3,11 +3,11 @@
 <head>
    <meta charset="UTF-8">
    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <title>9v9 Soccer Coach - Sub & Time Manager</title>
+   <title>9v9 Soccer Coach - Roster & Subs</title>
    <style>
        :root {
            --pitch-green: #2e8b57;
-           --pitch-line: #ffffff;
+           --pitch-line: rgba(255, 255, 255, 0.6);
            --panel-bg: #f8f9fa;
            --primary: #007bff;
            --danger: #dc3545;
@@ -18,25 +18,26 @@
            font-family: Arial, sans-serif;
            background-color: #e9ecef;
            margin: 0;
-           padding: 15px;
+           padding: 10px;
            color: #333;
        }
 
-       h1, h2 {
+       h1 {
            text-align: center;
-           margin: 5px 0 15px 0;
+           margin: 5px 0 10px 0;
            color: #2c3e50;
+           font-size: 1.3rem;
        }
 
        .match-timer-bar {
            background: #2c3e50;
            color: white;
-           padding: 10px;
+           padding: 8px;
            text-align: center;
-           font-size: 1.2rem;
+           font-size: 0.95rem;
            font-weight: bold;
-           border-radius: 8px;
-           margin-bottom: 15px;
+           border-radius: 6px;
+           margin-bottom: 10px;
            display: flex;
            justify-content: space-around;
            align-items: center;
@@ -44,43 +45,44 @@
 
        .container {
            display: flex;
-           flex-direction: row;
-           gap: 20px;
-           max-width: 1400px;
+           flex-direction: column;
+           gap: 15px;
+           max-width: 600px;
            margin: 0 auto;
        }
 
-       @media (max-width: 900px) {
+       @media (min-width: 768px) {
            .container {
-               flex-direction: column;
+               flex-direction: row;
+               max-width: 1200px;
            }
        }
 
-       /* Sidebar / Roster & Bench */
+       /* Sidebar: Bench & Pending Changes */
        .sidebar {
            flex: 1;
            background: var(--panel-bg);
-           padding: 15px;
+           padding: 12px;
            border-radius: 8px;
            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-           max-height: 85vh;
-           overflow-y: auto;
        }
 
-       .player-list {
+       .bench-container {
            display: flex;
            flex-direction: column;
-           gap: 8px;
-           min-height: 100px;
+           gap: 6px;
+           min-height: 80px;
            background: #e2e6ea;
-           padding: 10px;
+           padding: 8px;
            border-radius: 6px;
            border: 2px dashed #ced4da;
+           max-height: 280px;
+           overflow-y: auto;
        }
 
        .player-card {
            background: white;
-           padding: 10px;
+           padding: 8px 10px;
            border-radius: 6px;
            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
            cursor: grab;
@@ -88,8 +90,8 @@
            justify-content: space-between;
            align-items: center;
            font-weight: bold;
+           font-size: 0.85rem;
            user-select: none;
-           transition: background 0.2s;
        }
 
        .player-card:active {
@@ -97,24 +99,37 @@
        }
 
        .player-info {
-           font-size: 0.85rem;
+           font-size: 0.7rem;
            color: #666;
            font-weight: normal;
        }
 
-       /* Soccer Pitch Layout */
+       /* Visual Soccer Pitch */
        .pitch-container {
-           flex: 2;
+           flex: 1.5;
            background: var(--pitch-green);
            border: 4px solid white;
            border-radius: 12px;
-           padding: 20px;
+           padding: 15px 10px;
            display: flex;
            flex-direction: column;
            justify-content: space-between;
-           min-height: 600px;
+           height: 520px;
            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
            position: relative;
+           box-sizing: border-box;
+       }
+
+       .pitch-container::before {
+           content: '';
+           position: absolute;
+           top: 50%;
+           left: 0;
+           width: 100%;
+           height: 2px;
+           background: var(--pitch-line);
+           transform: translateY(-50%);
+           pointer-events: none;
        }
 
        .pitch-row {
@@ -122,16 +137,16 @@
            justify-content: space-around;
            align-items: center;
            width: 100%;
-           margin: 10px 0;
+           z-index: 2;
        }
 
        .position-slot {
-           background: rgba(255, 255, 255, 0.2);
+           background: rgba(0, 0, 0, 0.3);
            border: 2px dashed rgba(255, 255, 255, 0.7);
-           border-radius: 8px;
-           width: 110px;
-           min-height: 80px;
-           padding: 8px;
+           border-radius: 6px;
+           width: 90px;
+           height: 70px;
+           padding: 4px;
            text-align: center;
            color: white;
            display: flex;
@@ -142,15 +157,15 @@
        }
 
        .position-slot.drag-over {
-           background: rgba(255, 255, 255, 0.4);
+           background: rgba(255, 255, 255, 0.5);
            border-color: white;
        }
 
        .position-name {
-           font-size: 0.75rem;
+           font-size: 0.6rem;
            text-transform: uppercase;
-           letter-spacing: 1px;
-           margin-bottom: 4px;
+           letter-spacing: 0.5px;
+           margin-bottom: 2px;
            color: #f1f1f1;
            font-weight: bold;
        }
@@ -159,19 +174,39 @@
            background: white;
            color: #333;
            width: 100%;
-           padding: 6px 4px;
+           height: 100%;
            border-radius: 4px;
            font-weight: bold;
-           font-size: 0.9rem;
+           font-size: 0.75rem;
+           display: flex;
+           flex-direction: column;
+           justify-content: center;
+           align-items: center;
            cursor: grab;
            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+           padding: 2px;
+           box-sizing: border-box;
        }
 
        .timer-display {
-           font-size: 0.75rem;
+           font-size: 0.6rem;
            color: #d9534f;
-           margin-top: 2px;
            font-weight: bold;
+       }
+
+       .empty-label {
+           font-size: 0.7rem;
+           color: rgba(255,255,255,0.8);
+           font-style: italic;
+       }
+
+       .action-panel {
+           margin-top: 12px;
+           background: #fff3cd;
+           border: 1px solid #ffeeba;
+           padding: 8px;
+           border-radius: 6px;
+           text-align: center;
        }
 
        .btn {
@@ -182,27 +217,16 @@
            border-radius: 4px;
            cursor: pointer;
            font-weight: bold;
+           font-size: 0.85rem;
        }
 
-       .btn-danger {
-           background: var(--danger);
-       }
-
-       .btn-success {
-           background: var(--success);
-       }
-
-       .controls {
-           margin-top: 15px;
-           display: flex;
-           gap: 10px;
-           justify-content: center;
-       }
+       .btn-danger { background: var(--danger); }
+       .btn-success { background: var(--success); }
 
        .stats-table {
-           margin-top: 20px;
+           margin-top: 15px;
            background: white;
-           padding: 15px;
+           padding: 12px;
            border-radius: 8px;
            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
        }
@@ -210,57 +234,57 @@
        table {
            width: 100%;
            border-collapse: collapse;
-           font-size: 0.9rem;
+           font-size: 0.8rem;
        }
 
        th, td {
-           padding: 8px;
+           padding: 5px;
            text-align: left;
            border-bottom: 1px solid #dee2e6;
        }
 
-       th {
-           background-color: #f1f3f5;
-       }
+       th { background-color: #f1f3f5; }
    </style>
 </head>
 <body>
 
-   <h1>9v9 Match & Sub Manager</h1>
+   <h1>9v9 Match Sub & Time Manager</h1>
 
    <div class="match-timer-bar">
-       <div>Half: <span id="current-half">1st Half</span> (30 min target)</div>
-       <div>Match Clock: <span id="match-clock">00:00</span></div>
+       <div>Clock: <span id="match-clock">00:00</span></div>
        <div>
            <button class="btn btn-success" id="start-match-btn" onclick="toggleMatchTimer()">Start Match</button>
-           <button class="btn btn-danger" onclick="resetMatchTimer()">Reset Match</button>
+           <button class="btn btn-danger" onclick="resetMatchTimer()">Reset</button>
        </div>
    </div>
 
    <div class="container">
-       <!-- Sidebar: Bench / Roster -->
+       <!-- Sidebar: Bench -->
        <div class="sidebar">
-           <h2>Bench / Roster (13)</h2>
-           <p style="font-size:0.8rem; color:#666; text-align:center;">Drag players onto positions or click to sub</p>
-           <div id="bench" class="player-list" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToBench(event)">
-               <!-- Dynamic Player Cards injected here -->
+           <h3 style="margin-top:0; margin-bottom:6px;">Bench / Roster</h3>
+           <p style="font-size:0.7rem; color:#666; margin-top:0;">Drag players onto field positions.</p>
+           <div id="bench" class="bench-container" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToBench(event)"></div>
+
+           <div class="action-panel">
+               <p style="margin:0 0 6px 0; font-size:0.75rem; font-weight:bold;">Ready to execute changes?</p>
+               <button class="btn btn-success" style="width:100%;" onclick="applySubstitutions()">💾 Apply & Start New Stints</button>
            </div>
 
-           <div class="controls">
-               <button class="btn" onclick="addNewPlayerPrompt()">+ Add Player</button>
-               <button class="btn btn-danger" onclick="resetAllTimes()">Reset Stats</button>
+           <div style="margin-top: 8px; display: flex; gap: 5px;">
+               <button class="btn" style="flex:1; font-size:0.75rem;" onclick="addNewPlayerPrompt()">+ Add Player</button>
+               <button class="btn btn-danger" style="flex:1; font-size:0.75rem;" onclick="resetAllTimes()">Reset Stats</button>
            </div>
        </div>
 
-       <!-- Pitch: 9v9 Formation -->
+       <!-- Visual Soccer Pitch Layout (9v9) -->
        <div class="pitch-container" id="pitch">
            <!-- Forwards (2) -->
            <div class="pitch-row">
-               <div class="position-slot" data-pos="ST" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
+               <div class="position-slot" data-pos="LF" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
                    <div class="position-name">Left Forward</div>
                    <span class="empty-label">Empty</span>
                </div>
-               <div class="position-slot" data-pos="ST" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
+               <div class="position-slot" data-pos="RF" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToPosition(event)">
                    <div class="position-name">Right Forward</div>
                    <span class="empty-label">Empty</span>
                </div>
@@ -310,44 +334,41 @@
 
    <!-- Playing Time Log Table -->
    <div class="stats-table">
-       <h2>Playing Time Tracker</h2>
+       <h3 style="margin-top:0; margin-bottom:6px;">Playing Time Log</h3>
        <table>
            <thead>
                <tr>
-                   <th>Player Name</th>
-                   <th>Current Status</th>
-                   <th>Total Playing Time</th>
+                   <th>Player</th>
+                   <th>Status</th>
+                   <th>Stint</th>
+                   <th>Total</th>
                </tr>
-           <thead>
-           <tbody id="stats-tbody">
-               <!-- Injected via JS -->
-           </tbody>
+           </thead>
+           <tbody id="stats-tbody"></tbody>
        </table>
    </div>
 
    <script>
-       // Initial 13 players list
+       // Exact roster list from screenshots (12 players listed + 1 placeholder for total 13)
        let players = [
-           { id: 1, name: "Player 1", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 2, name: "Player 2", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 3, name: "Player 3", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 4, name: "Player 4", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 5, name: "Player 5", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 6, name: "Player 6", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 7, name: "Player 7", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 8, name: "Player 8", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 9, name: "Player 9", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 10, name: "Player 10", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 11, name: "Player 11", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 12, name: "Player 12", totalSeconds: 0, currentPosition: null, stintStartSeconds: null },
-           { id: 13, name: "Player 13", totalSeconds: 0, currentPosition: null, stintStartSeconds: null }
+           { id: 2, name: "Parker Faden #2", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
+           { id: 3, name: "James Nowlan #3", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
+           { id: 4, name: "Owen Fallis #4", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
+           { id: 7, name: "Raymond Midlam #7", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
+           { id: 10, name: "Samuel Bacallado #10", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
+           { id: 12, name: "Evan Leese #12", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
+           { id: 13, name: "Landon Small #13", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
+           { id: 17, name: "Vincent Lomangino #17", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
+           { id: 18, name: "Elijah Gomes #18", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
+           { id: 19, name: "Landon LaBelle #19", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
+           { id: 27, name: "James Lomangino #27", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
+           { id: 29, name: "Caden Wells #29", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null }
        ];
 
        let matchSeconds = 0;
        let matchInterval = null;
        let isMatchRunning = false;
 
-       // Initialize App Render
        function render() {
            renderBench();
            renderPitchSlots();
@@ -355,41 +376,40 @@
        }
 
        function formatTime(totalSecs) {
+           if (totalSecs === null || isNaN(totalSecs)) return "00:00";
            const mins = Math.floor(totalSecs / 60);
            const secs = totalSecs % 60;
            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
        }
 
-       // Match Clock Logic
        function toggleMatchTimer() {
            const btn = document.getElementById('start-match-btn');
            if (!isMatchRunning) {
                isMatchRunning = true;
-               btn.innerText = "Pause Match";
+               btn.innerText = "Pause";
                btn.className = "btn btn-danger";
                matchInterval = setInterval(() => {
                    matchSeconds++;
                    document.getElementById('match-clock').innerText = formatTime(matchSeconds);
 
-                   // Update active stints
                    players.forEach(p => {
                        if (p.currentPosition !== null) {
                            p.totalSeconds++;
                        }
                    });
                    renderStatsTable();
-                   renderPitchTimers();
+                   renderPitchTimersOnly();
                }, 1000);
            } else {
                isMatchRunning = false;
-               btn.innerText = "Resume Match";
+               btn.innerText = "Start Match";
                btn.className = "btn btn-success";
                clearInterval(matchInterval);
            }
        }
 
        function resetMatchTimer() {
-           if(confirm("Are you sure you want to reset the match clock?")) {
+           if(confirm("Reset match clock?")) {
                clearInterval(matchInterval);
                isMatchRunning = false;
                matchSeconds = 0;
@@ -399,15 +419,14 @@
            }
        }
 
-       // Render Bench
        function renderBench() {
            const benchEl = document.getElementById('bench');
            benchEl.innerHTML = '';
 
-           const benchPlayers = players.filter(p => p.currentPosition === null);
+           const benchPlayers = players.filter(p => p.pendingPosition === null);
 
            if (benchPlayers.length === 0) {
-               benchEl.innerHTML = '<div style="color: #888; text-align: center; font-style: italic; padding: 15px;">All players are on the field!</div>';
+               benchEl.innerHTML = '<div style="color: #888; text-align: center; font-style: italic; font-size:0.75rem; padding: 10px;">Bench is empty</div>';
                return;
            }
 
@@ -419,26 +438,18 @@
 
                card.innerHTML = `
                    <span>⚽ ${player.name}</span>
-                   <span class="player-info">Bench (${formatTime(player.totalSeconds)} total)</span>
+                   <span class="player-info">${formatTime(player.totalSeconds)}</span>
                `;
                benchEl.appendChild(card);
            });
        }
 
-       // Render Pitch Slots
        function renderPitchSlots() {
            const slots = document.querySelectorAll('.position-slot');
-           slots.forEach((slot, index) => {
-               // Find if any player is assigned to this exact slot index or position identifier
-               // To keep it simple, let's map slots by a unique generated index
-               if (!slot.dataset.slotId) {
-                   slot.dataset.slotId = 'slot_' + index;
-               }
-               const slotId = slot.dataset.slotId;
+           slots.forEach(slot => {
+               const posKey = slot.dataset.pos;
+               const assignedPlayer = players.find(p => p.pendingPosition === posKey);
 
-               const assignedPlayer = players.find(p => p.currentPosition === slotId);
-
-               // Clear out previous card element if any
                const existingCard = slot.querySelector('.slot-assigned-player');
                const emptyLabel = slot.querySelector('.empty-label');
 
@@ -448,15 +459,17 @@
                        const card = document.createElement('div');
                        card.className = 'slot-assigned-player';
                        card.draggable = true;
-                       card.id = 'assigned_' + assignedPlayer.id;
                        card.ondragstart = (e) => drag(e, assignedPlayer.id);
                        slot.appendChild(card);
                    }
                    const card = slot.querySelector('.slot-assigned-player');
-                   const stintSecs = matchSeconds - (assignedPlayer.stintStartSeconds ?? matchSeconds);
+                   const activeStintSecs = (assignedPlayer.currentPosition === posKey && assignedPlayer.stintStartSeconds !== null) 
+                       ? (matchSeconds - assignedPlayer.stintStartSeconds) 
+                       : 0;
+
                    card.innerHTML = `
-                       <div>${assignedPlayer.name}</div>
-                       <div class="timer-display">Stint: ${formatTime(stintSecs)}</div>
+                       <div style="font-size:0.7rem; line-height:1.1;">${assignedPlayer.name}</div>
+                       <div class="timer-display">${assignedPlayer.currentPosition === posKey ? formatTime(activeStintSecs) : 'Staged'}</div>
                    `;
                } else {
                    if(existingCard) existingCard.remove();
@@ -465,40 +478,41 @@
            });
        }
 
-       function renderPitchTimers() {
+       function renderPitchTimersOnly() {
            const slots = document.querySelectorAll('.position-slot');
            slots.forEach(slot => {
-               const slotId = slot.dataset.slotId;
-               const assignedPlayer = players.find(p => p.currentPosition === slotId);
-               if (assignedPlayer) {
+               const posKey = slot.dataset.pos;
+               const assignedPlayer = players.find(p => p.currentPosition === posKey && p.pendingPosition === posKey);
+               if (assignedPlayer && assignedPlayer.stintStartSeconds !== null) {
                    const timerEl = slot.querySelector('.timer-display');
                    if (timerEl) {
-                       const stintSecs = matchSeconds - assignedPlayer.stintStartSeconds;
-                       timerEl.innerText = `Stint: ${formatTime(stintSecs)}`;
+                       timerEl.innerText = formatTime(matchSeconds - assignedPlayer.stintStartSeconds);
                    }
                }
            });
        }
 
-       // Render Stats Table
        function renderStatsTable() {
            const tbody = document.getElementById('stats-tbody');
            tbody.innerHTML = '';
            players.forEach(p => {
                const tr = document.createElement('tr');
-               const status = p.currentPosition ? 'On Field' : 'On Bench';
-               const statusColor = p.currentPosition ? 'color: var(--success); font-weight:bold;' : 'color: #666;';
+               const isOnField = p.currentPosition !== null;
+               const status = isOnField ? `${p.currentPosition}` : 'Bench';
+               const statusColor = isOnField ? 'color: var(--success); font-weight:bold;' : 'color: #666;';
+
+               const currentStintSecs = (isOnField && p.stintStartSeconds !== null) ? (matchSeconds - p.stintStartSeconds) : 0;
 
                tr.innerHTML = `
                    <td>${p.name}</td>
                    <td style="${statusColor}">${status}</td>
-                   <td>${formatTime(p.totalSeconds)}</td>
+                   <td>${isOnField ? formatTime(currentStintSecs) : '-'}</td>
+                   <td><b>${formatTime(p.totalSeconds)}</b></td>
                `;
                tbody.appendChild(tr);
            });
        }
 
-       // Drag and Drop Handlers
        function drag(ev, playerId) {
            ev.dataTransfer.setData("text/plain", playerId);
        }
@@ -520,21 +534,17 @@
            if (slot) slot.classList.remove('drag-over');
 
            const playerId = parseInt(ev.dataTransfer.getData("text/plain"));
-           const slotId = slot.dataset.slotId;
+           const targetPos = slot.dataset.pos;
 
-           // Check if another player is already in this slot
-           const occupant = players.find(p => p.currentPosition === slotId);
-           if (occupant) {
-               // Send occupant to bench
-               occupant.currentPosition = null;
-               occupant.stintStartSeconds = null;
-           }
+           players.forEach(p => {
+               if (p.pendingPosition === targetPos) {
+                   p.pendingPosition = null;
+               }
+           });
 
-           // Assign new player to slot
            const player = players.find(p => p.id === playerId);
            if (player) {
-               player.currentPosition = slotId;
-               player.stintStartSeconds = matchSeconds; // start tracking current stint time
+               player.pendingPosition = targetPos;
            }
 
            render();
@@ -549,15 +559,29 @@
            const player = players.find(p => p.id === playerId);
 
            if (player) {
-               player.currentPosition = null;
-               player.stintStartSeconds = null;
+               player.pendingPosition = null;
            }
 
            render();
        }
 
+       function applySubstitutions() {
+           players.forEach(p => {
+               if (p.pendingPosition !== p.currentPosition) {
+                   p.currentPosition = p.pendingPosition;
+                   if (p.currentPosition !== null) {
+                       p.stintStartSeconds = matchSeconds;
+                   } else {
+                       p.stintStartSeconds = null;
+                   }
+               }
+           });
+           render();
+           alert("Substitutions applied successfully!");
+       }
+
        function addNewPlayerPrompt() {
-           const name = prompt("Enter new player name:");
+           const name = prompt("Enter player name and number:");
            if (name && name.trim() !== "") {
                const newId = players.length > 0 ? Math.max(...players.map(p => p.id)) + 1 : 1;
                players.push({
@@ -565,14 +589,15 @@
                    name: name.trim(),
                    totalSeconds: 0,
                    currentPosition: null,
-                   stintStartSeconds: null
+                   stintStartSeconds: null,
+                   pendingPosition: null
                });
                render();
            }
        }
 
        function resetAllTimes() {
-           if(confirm("Reset playing time statistics for all players?")) {
+           if(confirm("Reset stats for all players?")) {
                players.forEach(p => {
                    p.totalSeconds = 0;
                    if(p.currentPosition !== null) {
@@ -583,7 +608,6 @@
            }
        }
 
-       // Initial render execution on load
        render();
    </script>
 </body>
