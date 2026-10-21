@@ -254,7 +254,7 @@
        <div>Clock: <span id="match-clock">00:00</span></div>
        <div>
            <button class="btn btn-success" id="start-match-btn" onclick="toggleMatchTimer()">Start Match</button>
-           <button class="btn btn-danger" onclick="resetMatchTimer()">Reset</button>
+           <button class="btn btn-danger" onclick="resetMatchTimer()">Reset Clock</button>
        </div>
    </div>
 
@@ -262,7 +262,7 @@
        <!-- Sidebar: Bench -->
        <div class="sidebar">
            <h3 style="margin-top:0; margin-bottom:6px;">Bench / Roster</h3>
-           <p style="font-size:0.7rem; color:#666; margin-top:0;">Drag players onto field positions.</p>
+           <p style="font-size:0.7rem; color:#666; margin-top:0;">Drag players onto field positions. Gold stripe = among lowest playing time.</p>
            <div id="bench" class="bench-container" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToBench(event)"></div>
 
            <div class="action-panel">
@@ -272,7 +272,7 @@
 
            <div style="margin-top: 8px; display: flex; gap: 5px;">
                <button class="btn" style="flex:1; font-size:0.75rem;" onclick="addNewPlayerPrompt()">+ Add Player</button>
-               <button class="btn btn-danger" style="flex:1; font-size:0.75rem;" onclick="resetAllTimes()">Reset Stats</button>
+               <button class="btn btn-danger" style="flex:1; font-size:0.75rem;" onclick="resetAllTimes()">New Game</button>
            </div>
        </div>
 
@@ -349,266 +349,214 @@
    </div>
 
    <script>
-       // Exact roster list from screenshots (12 players listed + 1 placeholder for total 13)
-       let players = [
-           { id: 2, name: "Parker Faden #2", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
-           { id: 3, name: "James Nowlan #3", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
-           { id: 4, name: "Owen Fallis #4", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
-           { id: 7, name: "Raymond Midlam #7", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
-           { id: 10, name: "Samuel Bacallado #10", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
-           { id: 12, name: "Evan Leese #12", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
-           { id: 13, name: "Landon Small #13", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
-           { id: 17, name: "Vincent Lomangino #17", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
-           { id: 18, name: "Elijah Gomes #18", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
-           { id: 19, name: "Landon LaBelle #19", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
-           { id: 27, name: "James Lomangino #27", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null },
-           { id: 29, name: "Caden Wells #29", totalSeconds: 0, currentPosition: null, stintStartSeconds: null, pendingPosition: null }
-       ];
+'use strict';
+const STORAGE_KEY = 'soccer9v9-match-v2';
+const ROSTER = [
+[2,'Parker Faden'],[3,'James Nowlan'],[4,'Owen Fallis'],[5,'Emmett Waechter'],
+[6,'David Mininger'],[7,'Raymond Midlam'],[10,'Samuel Bacallado'],[11,'Weston Winegar'],
+[12,'Evan Leese'],[13,'Landon Small'],[14,'Theodore Farrell'],[17,'Vincent Lomangino'],
+[18,'Elijah Gomes'],[19,'Landon LaBelle'],[21,'James Fox'],[22,'Greyson Ferrari'],
+[27,'James Lomangino'],[28,'Pellegrino Matarazzo'],[29,'Caden Wells'],
+[30,'Silas Butterfield'],[33,'Ridge Morris']
+];
+const POSITIONS = ['LF','RF','LM','CM','RM','LB','CB','RB','GK'];
+const makePlayer = ([id,name]) => ({id,name:`${name} #${id}`,attending:false,totalSeconds:0,currentPosition:null,stintStartSeconds:null,pendingPosition:null});
+let players = ROSTER.map(makePlayer);
+let matchSeconds = 0;
+let isMatchRunning = false;
+let lastTickMs = null;
+let matchInterval = null;
+let savedAtMs = null;
 
-       let matchSeconds = 0;
-       let matchInterval = null;
-       let isMatchRunning = false;
-
-       function render() {
-           renderBench();
-           renderPitchSlots();
-           renderStatsTable();
-       }
-
-       function formatTime(totalSecs) {
-           if (totalSecs === null || isNaN(totalSecs)) return "00:00";
-           const mins = Math.floor(totalSecs / 60);
-           const secs = totalSecs % 60;
-           return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-       }
-
-       function toggleMatchTimer() {
-           const btn = document.getElementById('start-match-btn');
-           if (!isMatchRunning) {
-               isMatchRunning = true;
-               btn.innerText = "Pause";
-               btn.className = "btn btn-danger";
-               matchInterval = setInterval(() => {
-                   matchSeconds++;
-                   document.getElementById('match-clock').innerText = formatTime(matchSeconds);
-
-                   players.forEach(p => {
-                       if (p.currentPosition !== null) {
-                           p.totalSeconds++;
-                       }
-                   });
-                   renderStatsTable();
-                   renderPitchTimersOnly();
-               }, 1000);
-           } else {
-               isMatchRunning = false;
-               btn.innerText = "Start Match";
-               btn.className = "btn btn-success";
-               clearInterval(matchInterval);
-           }
-       }
-
-       function resetMatchTimer() {
-           if(confirm("Reset match clock?")) {
-               clearInterval(matchInterval);
-               isMatchRunning = false;
-               matchSeconds = 0;
-               document.getElementById('match-clock').innerText = "00:00";
-               document.getElementById('start-match-btn').innerText = "Start Match";
-               document.getElementById('start-match-btn').className = "btn btn-success";
-           }
-       }
-
-       function renderBench() {
-           const benchEl = document.getElementById('bench');
-           benchEl.innerHTML = '';
-
-           const benchPlayers = players.filter(p => p.pendingPosition === null);
-
-           if (benchPlayers.length === 0) {
-               benchEl.innerHTML = '<div style="color: #888; text-align: center; font-style: italic; font-size:0.75rem; padding: 10px;">Bench is empty</div>';
-               return;
-           }
-
-           benchPlayers.forEach(player => {
-               const card = document.createElement('div');
-               card.className = 'player-card';
-               card.draggable = true;
-               card.ondragstart = (e) => drag(e, player.id);
-
-               card.innerHTML = `
-                   <span>⚽ ${player.name}</span>
-                   <span class="player-info">${formatTime(player.totalSeconds)}</span>
-               `;
-               benchEl.appendChild(card);
-           });
-       }
-
-       function renderPitchSlots() {
-           const slots = document.querySelectorAll('.position-slot');
-           slots.forEach(slot => {
-               const posKey = slot.dataset.pos;
-               const assignedPlayer = players.find(p => p.pendingPosition === posKey);
-
-               const existingCard = slot.querySelector('.slot-assigned-player');
-               const emptyLabel = slot.querySelector('.empty-label');
-
-               if (assignedPlayer) {
-                   if(emptyLabel) emptyLabel.style.display = 'none';
-                   if(!existingCard) {
-                       const card = document.createElement('div');
-                       card.className = 'slot-assigned-player';
-                       card.draggable = true;
-                       card.ondragstart = (e) => drag(e, assignedPlayer.id);
-                       slot.appendChild(card);
-                   }
-                   const card = slot.querySelector('.slot-assigned-player');
-                   const activeStintSecs = (assignedPlayer.currentPosition === posKey && assignedPlayer.stintStartSeconds !== null) 
-                       ? (matchSeconds - assignedPlayer.stintStartSeconds) 
-                       : 0;
-
-                   card.innerHTML = `
-                       <div style="font-size:0.7rem; line-height:1.1;">${assignedPlayer.name}</div>
-                       <div class="timer-display">${assignedPlayer.currentPosition === posKey ? formatTime(activeStintSecs) : 'Staged'}</div>
-                   `;
-               } else {
-                   if(existingCard) existingCard.remove();
-                   if(emptyLabel) emptyLabel.style.display = 'block';
-               }
-           });
-       }
-
-       function renderPitchTimersOnly() {
-           const slots = document.querySelectorAll('.position-slot');
-           slots.forEach(slot => {
-               const posKey = slot.dataset.pos;
-               const assignedPlayer = players.find(p => p.currentPosition === posKey && p.pendingPosition === posKey);
-               if (assignedPlayer && assignedPlayer.stintStartSeconds !== null) {
-                   const timerEl = slot.querySelector('.timer-display');
-                   if (timerEl) {
-                       timerEl.innerText = formatTime(matchSeconds - assignedPlayer.stintStartSeconds);
-                   }
-               }
-           });
-       }
-
-       function renderStatsTable() {
-           const tbody = document.getElementById('stats-tbody');
-           tbody.innerHTML = '';
-           players.forEach(p => {
-               const tr = document.createElement('tr');
-               const isOnField = p.currentPosition !== null;
-               const status = isOnField ? `${p.currentPosition}` : 'Bench';
-               const statusColor = isOnField ? 'color: var(--success); font-weight:bold;' : 'color: #666;';
-
-               const currentStintSecs = (isOnField && p.stintStartSeconds !== null) ? (matchSeconds - p.stintStartSeconds) : 0;
-
-               tr.innerHTML = `
-                   <td>${p.name}</td>
-                   <td style="${statusColor}">${status}</td>
-                   <td>${isOnField ? formatTime(currentStintSecs) : '-'}</td>
-                   <td><b>${formatTime(p.totalSeconds)}</b></td>
-               `;
-               tbody.appendChild(tr);
-           });
-       }
-
-       function drag(ev, playerId) {
-           ev.dataTransfer.setData("text/plain", playerId);
-       }
-
-       function allowDrop(ev) {
-           ev.preventDefault();
-           const slot = ev.target.closest('.position-slot') || ev.target.closest('#bench');
-           if (slot) slot.classList.add('drag-over');
-       }
-
-       function removeDropStyle(ev) {
-           const slot = ev.target.closest('.position-slot') || ev.target.closest('#bench');
-           if (slot) slot.classList.remove('drag-over');
-       }
-
-       function dropToPosition(ev) {
-           ev.preventDefault();
-           const slot = ev.target.closest('.position-slot');
-           if (slot) slot.classList.remove('drag-over');
-
-           const playerId = parseInt(ev.dataTransfer.getData("text/plain"));
-           const targetPos = slot.dataset.pos;
-
-           players.forEach(p => {
-               if (p.pendingPosition === targetPos) {
-                   p.pendingPosition = null;
-               }
-           });
-
-           const player = players.find(p => p.id === playerId);
-           if (player) {
-               player.pendingPosition = targetPos;
-           }
-
-           render();
-       }
-
-       function dropToBench(ev) {
-           ev.preventDefault();
-           const benchEl = document.getElementById('bench');
-           benchEl.classList.remove('drag-over');
-
-           const playerId = parseInt(ev.dataTransfer.getData("text/plain"));
-           const player = players.find(p => p.id === playerId);
-
-           if (player) {
-               player.pendingPosition = null;
-           }
-
-           render();
-       }
-
-       function applySubstitutions() {
-           players.forEach(p => {
-               if (p.pendingPosition !== p.currentPosition) {
-                   p.currentPosition = p.pendingPosition;
-                   if (p.currentPosition !== null) {
-                       p.stintStartSeconds = matchSeconds;
-                   } else {
-                       p.stintStartSeconds = null;
-                   }
-               }
-           });
-           render();
-           alert("Substitutions applied successfully!");
-       }
-
-       function addNewPlayerPrompt() {
-           const name = prompt("Enter player name and number:");
-           if (name && name.trim() !== "") {
-               const newId = players.length > 0 ? Math.max(...players.map(p => p.id)) + 1 : 1;
-               players.push({
-                   id: newId,
-                   name: name.trim(),
-                   totalSeconds: 0,
-                   currentPosition: null,
-                   stintStartSeconds: null,
-                   pendingPosition: null
-               });
-               render();
-           }
-       }
-
-       function resetAllTimes() {
-           if(confirm("Reset stats for all players?")) {
-               players.forEach(p => {
-                   p.totalSeconds = 0;
-                   if(p.currentPosition !== null) {
-                       p.stintStartSeconds = matchSeconds;
-                   }
-               });
-               render();
-           }
-       }
-
-       render();
-   </script>
+function safeLoad() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (!saved || saved.version !== 2 || !Array.isArray(saved.players)) return;
+    const byId = new Map(saved.players.map(p=>[p.id,p]));
+    players = ROSTER.map(entry => {
+      const base=makePlayer(entry), old=byId.get(entry[0]);
+      if (!old) return base;
+      return {...base, attending:!!old.attending,
+        totalSeconds:Math.max(0,Number(old.totalSeconds)||0),
+        currentPosition:POSITIONS.includes(old.currentPosition)?old.currentPosition:null,
+        pendingPosition:POSITIONS.includes(old.pendingPosition)?old.pendingPosition:null,
+        stintStartSeconds:Number.isFinite(old.stintStartSeconds)?old.stintStartSeconds:null};
+    });
+    for(const old of saved.players) {
+      if (!ROSTER.some(p=>p[0]===old.id) && typeof old.name==='string') {
+        players.push({...makePlayer([old.id,old.name]),...old});
+      }
+    }
+    matchSeconds=Math.max(0,Number(saved.matchSeconds)||0);
+    isMatchRunning=!!saved.isMatchRunning;
+    lastTickMs=Number(saved.lastTickMs)||Date.now();
+    if(isMatchRunning) syncClock();
+  } catch(e) { console.warn('Saved game unavailable',e); }
+}
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY,JSON.stringify({version:2,players,matchSeconds,isMatchRunning,lastTickMs}));
+    document.getElementById('save-status').textContent='Game automatically saved on this device';
+  } catch(e) { document.getElementById('save-status').textContent='⚠ Unable to save: check browser storage'; }
+}
+function syncClock() {
+  if(!isMatchRunning) return;
+  const now=Date.now();
+  const delta=Math.max(0,Math.floor((now-lastTickMs)/1000));
+  if(delta>0) {
+    matchSeconds+=delta;
+    players.forEach(p=>{if(p.currentPosition!==null) p.totalSeconds+=delta;});
+    lastTickMs+=delta*1000;
+  }
+}
+function formatTime(secs) {
+  secs=Math.max(0,Math.floor(secs||0));
+  return `${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
+}
+function updateClockUI() {
+  document.getElementById('match-clock').textContent=formatTime(matchSeconds);
+  const btn=document.getElementById('start-match-btn');
+  btn.textContent=isMatchRunning?'Pause':'Start Match';
+  btn.className=isMatchRunning?'btn btn-danger':'btn btn-success';
+}
+function tick() { syncClock();updateClockUI();renderStatsTable();renderPitchTimersOnly();save(); }
+function toggleMatchTimer() {
+  syncClock();isMatchRunning=!isMatchRunning;
+  lastTickMs=isMatchRunning?Date.now():null;
+  if(matchInterval) clearInterval(matchInterval);
+  if(isMatchRunning) matchInterval=setInterval(tick,1000);
+  updateClockUI();render();save();
+}
+function resetMatchTimer() {
+  if(!confirm('Reset the match clock? This does not erase player totals. Use New Game to reset everything.'))return;
+  syncClock();matchSeconds=0;
+  players.forEach(p=>{p.stintStartSeconds=p.currentPosition!==null?0:null;});
+  lastTickMs=isMatchRunning?Date.now():null;
+  updateClockUI();render();save();
+}
+function attendanceChanged(id,checked) {
+  syncClock();const p=players.find(x=>x.id===id);if(!p)return;
+  if(!checked && p.currentPosition!==null && !confirm(`Remove ${p.name} from today's game and field?`)) {renderAttendance();return;}
+  p.attending=checked;
+  if(!checked){p.currentPosition=null;p.pendingPosition=null;p.stintStartSeconds=null;}
+  render();save();
+}
+function selectAllAttendance(checked) {
+  syncClock();
+  if(!checked && players.some(p=>p.currentPosition!==null) && !confirm('Clear attendance and remove everyone from the field?'))return;
+  players.forEach(p=>{p.attending=checked;if(!checked){p.currentPosition=null;p.pendingPosition=null;p.stintStartSeconds=null;}});
+  render();save();
+}
+function renderAttendance() {
+  const grid=document.getElementById('attendance-grid');grid.replaceChildren();
+  for(const p of players) {
+    const label=document.createElement('label'),cb=document.createElement('input');
+    cb.type='checkbox';cb.checked=p.attending;cb.addEventListener('change',()=>attendanceChanged(p.id,cb.checked));
+    label.append(cb,document.createTextNode(p.name));grid.append(label);
+  }
+  document.getElementById('attendance-count').textContent=`${players.filter(p=>p.attending).length} of ${players.length} selected`;
+}
+function render() {renderAttendance();renderBench();renderPitchSlots();renderStatsTable();updateClockUI();}
+function lowTimeIds() {
+  const bench=players.filter(p=>p.attending&&p.pendingPosition===null);
+  if(!bench.length)return new Set();
+  const min=Math.min(...bench.map(p=>p.totalSeconds));
+  return new Set(bench.filter(p=>p.totalSeconds===min).map(p=>p.id));
+}
+function renderBench() {
+  const el=document.getElementById('bench');el.replaceChildren();
+  const bench=players.filter(p=>p.attending&&p.pendingPosition===null);
+  const low=lowTimeIds();
+  if(!bench.length){el.textContent='No bench players — select game attendance above';return;}
+  bench.sort((a,b)=>a.totalSeconds-b.totalSeconds || a.name.localeCompare(b.name));
+  for(const p of bench){
+    const card=document.createElement('div');card.className='player-card'+(low.has(p.id)?' bench-low':'');
+    card.draggable=true;card.addEventListener('dragstart',e=>drag(e,p.id));
+    const name=document.createElement('span');name.textContent='⚽ '+p.name;
+    const time=document.createElement('span');time.className='player-info';time.textContent=formatTime(p.totalSeconds);
+    card.append(name,time);el.append(card);
+  }
+}
+function renderPitchSlots() {
+  document.querySelectorAll('.position-slot').forEach(slot=>{
+    const pos=slot.dataset.pos,p=players.find(x=>x.attending&&x.pendingPosition===pos);
+    const card=slot.querySelector('.slot-assigned-player'),empty=slot.querySelector('.empty-label');
+    if(card)card.remove();if(empty)empty.style.display=p?'none':'block';
+    if(!p)return;
+    const newCard=document.createElement('div');newCard.className='slot-assigned-player';newCard.draggable=true;
+    newCard.addEventListener('dragstart',e=>drag(e,p.id));
+    const name=document.createElement('div');name.style.cssText='font-size:0.7rem;line-height:1.1';name.textContent=p.name;
+    const timer=document.createElement('div');timer.className='timer-display';
+    timer.textContent=p.currentPosition===pos&&p.stintStartSeconds!==null?formatTime(matchSeconds-p.stintStartSeconds):'Staged';
+    newCard.append(name,timer);slot.append(newCard);
+  });
+}
+function renderPitchTimersOnly() {
+  document.querySelectorAll('.position-slot').forEach(slot=>{
+    const pos=slot.dataset.pos,p=players.find(x=>x.currentPosition===pos&&x.pendingPosition===pos);
+    const timer=slot.querySelector('.timer-display');
+    if(p&&timer&&p.stintStartSeconds!==null)timer.textContent=formatTime(matchSeconds-p.stintStartSeconds);
+  });
+}
+function renderStatsTable() {
+  const tbody=document.getElementById('stats-tbody');tbody.replaceChildren();
+  const visible=players.filter(p=>p.attending).sort((a,b)=>a.totalSeconds-b.totalSeconds||a.name.localeCompare(b.name));
+  for(const p of visible){
+    const tr=document.createElement('tr');
+    const vals=[p.name,p.currentPosition||'Bench',p.currentPosition?formatTime(matchSeconds-(p.stintStartSeconds??matchSeconds)):'-',formatTime(p.totalSeconds)];
+    vals.forEach((v,i)=>{const td=document.createElement('td');td.textContent=v;if(i===1&&p.currentPosition)td.style.cssText='color:var(--success);font-weight:bold';if(i===3)td.style.fontWeight='bold';tr.append(td);});
+    tbody.append(tr);
+  }
+}
+function drag(ev,id){ev.dataTransfer.setData('text/plain',String(id));}
+function allowDrop(ev){ev.preventDefault();const el=ev.target.closest('.position-slot')||ev.target.closest('#bench');if(el)el.classList.add('drag-over');}
+function removeDropStyle(ev){const el=ev.target.closest('.position-slot')||ev.target.closest('#bench');if(el)el.classList.remove('drag-over');}
+function dropToPosition(ev){
+  ev.preventDefault();syncClock();const slot=ev.target.closest('.position-slot');if(!slot)return;
+  slot.classList.remove('drag-over');const id=Number(ev.dataTransfer.getData('text/plain'));
+  const p=players.find(x=>x.id===id&&x.attending);if(!p)return;
+  const pos=slot.dataset.pos;
+  players.forEach(x=>{if(x.pendingPosition===pos)x.pendingPosition=null;});p.pendingPosition=pos;
+  render();save();
+}
+function dropToBench(ev){
+  ev.preventDefault();syncClock();document.getElementById('bench').classList.remove('drag-over');
+  const p=players.find(x=>x.id===Number(ev.dataTransfer.getData('text/plain')));
+  if(p){p.pendingPosition=null;render();save();}
+}
+function applySubstitutions(){
+  syncClock();
+  const staged=players.filter(p=>p.attending&&p.pendingPosition!==p.currentPosition);
+  players.forEach(p=>{
+    if(p.pendingPosition!==p.currentPosition){
+      const wasOn=p.currentPosition!==null,willBeOn=p.pendingPosition!==null;
+      p.currentPosition=p.pendingPosition;
+      if(!willBeOn)p.stintStartSeconds=null;
+      else if(!wasOn)p.stintStartSeconds=matchSeconds;
+      // Position swaps do not reset a continuous playing stint.
+    }
+  });
+  render();save();
+  if(staged.length)document.getElementById('save-status').textContent=`${staged.length} player changes applied and saved`;
+}
+function addNewPlayerPrompt(){
+  const name=prompt('Enter player name and number (example: Alex Smith #35):');
+  if(!name||!name.trim())return;
+  const m=name.trim().match(/^(.*?)\s*#(\d+)$/);
+  if(!m){alert('Please include a jersey number, e.g. Alex Smith #35');return;}
+  const id=Number(m[2]);if(players.some(p=>p.id===id)){alert('That jersey number is already in use.');return;}
+  const p=makePlayer([id,m[1].trim()]);p.attending=true;players.push(p);render();save();
+}
+function resetAllTimes(){
+  if(!confirm('Start a NEW GAME? This resets the clock, playing time, and positions. Your roster and attendance selections stay saved.'))return;
+  if(matchInterval)clearInterval(matchInterval);matchInterval=null;isMatchRunning=false;matchSeconds=0;lastTickMs=null;
+  players.forEach(p=>{p.totalSeconds=0;p.currentPosition=null;p.pendingPosition=null;p.stintStartSeconds=null;});
+  render();save();
+}
+safeLoad();render();save();
+if(isMatchRunning)matchInterval=setInterval(tick,1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncClock();render();save();}});
+window.addEventListener('pagehide',()=>{syncClock();save();});
+</script>
 </body>
 </html>
