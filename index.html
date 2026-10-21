@@ -263,6 +263,11 @@
        <div class="sidebar">
            <h3 style="margin-top:0; margin-bottom:6px;">Bench / Roster</h3>
            <p style="font-size:0.7rem; color:#666; margin-top:0;">Drag players onto field positions. Gold stripe = among lowest playing time.</p>
+           <details class="attendance-panel" open>
+               <summary>Game Attendance — <span id="attendance-count">0 of 21 selected</span></summary>
+               <div class="attendance-tools"><span>Select players at today's game</span><div><button class="btn" onclick="selectAllAttendance(true)">All</button> <button class="btn" onclick="selectAllAttendance(false)">None</button></div></div>
+               <div id="attendance-grid"></div>
+           </details>
            <div id="bench" class="bench-container" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropToBench(event)"></div>
 
            <div class="action-panel">
@@ -274,6 +279,7 @@
                <button class="btn" style="flex:1; font-size:0.75rem;" onclick="addNewPlayerPrompt()">+ Add Player</button>
                <button class="btn btn-danger" style="flex:1; font-size:0.75rem;" onclick="resetAllTimes()">New Game</button>
            </div>
+           <p id="save-status" role="status">Game ready</p>
        </div>
 
        <!-- Visual Soccer Pitch Layout (9v9) -->
